@@ -1,0 +1,18 @@
+{
+  "name": "commander-shuttle-portal",
+  "version": "1.0.0",
+  "description": "Commander City Shuttle Pass — Online Self-Service Payment & Pass Issuance Portal",
+  "main": "index.html",
+  "scripts": {
+    "start": "node -e \"console.log('Portal ready')\""
+  },
+  "keywords": [
+    "shuttle-pass",
+    "commander-city",
+    "online-payment",
+    "ocr",
+    "vercel"
+  ],
+  "author": "Commander City Shuttle Service",
+  "license": "ISC"
+}

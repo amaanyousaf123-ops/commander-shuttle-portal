@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commander City Shuttle Pass — Self-Service Portal</title>
+  <meta name="description" content="Self-service shuttle pass renewal portal. Enter your unique member ID, choose pass type, upload payment proof, and receive your digital pass instantly.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚌</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #080d1a;
+      --bg-surface:   #0e1628;
+      --bg-card:      #111d35;
+      --bg-input:     #0a1122;
+      --border:       rgba(255,255,255,0.07);
+      --border-light: rgba(255,255,255,0.12);
+      --cyan:         #06b6d4;
+      --cyan-light:   #67e8f9;
+      --green:        #10b981;
+      --purple:       #8b5cf6;
+      --amber:        #f59e0b;
+      --red:          #ef4444;
+      --text:         #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted:   #475569;
+      --radius-sm:    10px;
+      --radius-md:    16px;
+      --radius-lg:    22px;
+      --shadow:       0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(ellipse at 10% 0%, rgba(6,182,212,0.08) 0%, transparent 55%),
+        radial-gradient(ellipse at 90% 90%, rgba(139,92,246,0.07) 0%, transparent 55%);
+    }
+
+    /* ── Header ── */
+    .portal-header {
+      background: rgba(8,13,26,0.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 66px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { height: 36px; width: 36px; object-fit: contain; border-radius: 8px; }
+    .brand-name { font-size: 1.2rem; font-weight: 900; color: #fff; letter-spacing: -0.02em; }
+    .brand-name span { color: var(--cyan); }
+    .brand-sub { font-size: 0.68rem; color: var(--text-muted); font-weight: 500; margin-top: 1px; }
+    .secure-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.72rem; font-weight: 700; color: var(--green);
+    }
+
+    /* ── Wrapper ── */
+    .portal-wrap { max-width: 800px; margin: 0 auto; padding: 32px 20px 80px; }
+
+    /* ── Hero ── */
+    .hero { text-align: center; padding: 36px 20px 20px; }
+    .hero h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); font-weight: 900; color: #fff; letter-spacing: -0.03em; line-height: 1.15; }
+    .hero h1 span { color: var(--cyan); }
+    .hero p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 10px; max-width: 520px; margin-inline: auto; line-height: 1.65; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(6,182,212,0.09); border: 1px solid rgba(6,182,212,0.25);
+      border-radius: 20px; padding: 6px 16px; font-size: 0.77rem; font-weight: 700;
+      color: var(--cyan); margin-top: 14px;
+    }
+
+    /* ── Wizard ── */
+    .wizard {
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 0 28px; padding: 0 10px; overflow-x: auto; gap: 0;
+    }
+    .wz { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 72px; position: relative; }
+    .wz:not(:last-child)::after {
+      content: ''; position: absolute; top: 18px; left: 60%; width: 80%; height: 2px;
+      background: var(--border); transition: background 0.4s;
+    }
+    .wz.done::after, .wz.active::after { background: var(--cyan); }
+    .wz-n {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; font-weight: 800; color: var(--text-muted);
+      background: var(--bg-surface); z-index: 1; transition: all 0.35s;
+    }
+    .wz.active .wz-n { border-color: var(--cyan); background: var(--cyan); color: #000; box-shadow: 0 0 18px rgba(6,182,212,0.45); }
+    .wz.done .wz-n   { border-color: var(--green); background: var(--green); color: #000; }
+    .wz-l { font-size: 0.68rem; font-weight: 600; color: var(--text-muted); text-align: center; }
+    .wz.active .wz-l { color: var(--cyan); }
+    .wz.done .wz-l   { color: var(--green); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 28px 24px;
+      margin-bottom: 22px;
+      transition: box-shadow 0.3s;
+    }
+    .card-title {
+      font-size: 1.05rem; font-weight: 800; color: #fff;
+      display: flex; align-items: center; gap: 10px; margin-bottom: 5px;
+    }
+    .card-desc { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 22px; line-height: 1.55; }
+
+    /* ── Form ── */
+    .form-label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 7px; }
+    .form-input {
+      width: 100%; background: var(--bg-input); border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text);
+      font-family: inherit; font-size: 0.9rem; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(6,182,212,0.12); }
+    .form-group { margin-bottom: 18px; }
+
+    /* ── ID Input group ── */
+    .id-group { display: flex; gap: 10px; align-items: flex-end; }
+    .id-group .form-input { flex: 1; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .btn-lookup {
+      padding: 12px 22px; background: linear-gradient(135deg, var(--cyan), #0891b2);
+      border: none; border-radius: var(--radius-sm); color: #000; font-weight: 800;
+      font-family: inherit; font-size: 0.9rem; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: all 0.2s; white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(6,182,212,0.3);
+    }
+    .btn-lookup:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(6,182,212,0.45); }
+    .btn-lookup:disabled { opacity: 0.45; transform: none; cursor: not-allowed; }
+
+    /* ── Member Card ── */
+    .member-found {
+      display: none; align-items: center; gap: 16px;
+      background: rgba(6,182,212,0.05); border: 1px solid rgba(6,182,212,0.2);
+      border-radius: var(--radius-md); padding: 16px 18px; margin-top: 16px;
+      animation: fadeInUp 0.4s ease;
+    }
+    .member-found.show { display: flex; }
+    .member-photo {
+      width: 58px; height: 58px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--cyan); flex-shrink: 0;
+    }
+    .member-name { font-size: 1.05rem; font-weight: 800; color: #fff; }
+    .member-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+    .m-tag { display: flex; align-items: center; gap: 4px; font-size: 0.72rem; color: var(--text-secondary); }
+    .m-tag i { font-size: 0.62rem; }
+    .member-not-found {
+      display: none; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: var(--radius-md); padding: 14px 18px; margin-top: 14px;
+      font-size: 0.88rem; color: var(--red); text-align: center;
+    }
+    .member-not-found.show { display: block; }
+
+    /* ── Pass Type ── */
+    .pass-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+    @media(max-width:480px) { .pass-grid { grid-template-columns: 1fr; } }
+    .pass-opt {
+      background: var(--bg-input); border: 2px solid var(--border-light);
+      border-radius: var(--radius-md); padding: 18px; cursor: pointer;
+      transition: all 0.25s;
+    }
+    .pass-opt:hover { border-color: rgba(6,182,212,0.4); }
+    .pass-opt.sel { border-color: var(--cyan); background: rgba(6,182,212,0.07); box-shadow: 0 0 22px rgba(6,182,212,0.13); }
+    .pass-opt.sel-purple { border-color: var(--purple); background: rgba(139,92,246,0.07); box-shadow: 0 0 22px rgba(139,92,246,0.12); }
+    .pass-opt.disabled-opt { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+    .pass-opt-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .pass-badge { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .badge-full { background: rgba(6,182,212,0.14); color: var(--cyan); }
+    .badge-half { background: rgba(139,92,246,0.14); color: var(--purple); }
+    .pass-price { font-size: 1.55rem; font-weight: 900; color: #fff; letter-spacing: -0.02em; }
+    .pass-desc { font-size: 0.76rem; color: var(--text-muted); margin-top: 4px; }
+    .half-notice {
+      background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 10px; padding: 10px 14px; font-size: 0.78rem; color: var(--amber);
+      display: flex; align-items: flex-start; gap: 8px; margin-bottom: 18px;
+    }
+    .half-notice i { margin-top: 1px; flex-shrink: 0; }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%; padding: 13px 24px; border-radius: var(--radius-sm); border: none;
+      cursor: pointer; font-family: inherit; font-size: 0.95rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; gap: 9px;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), #0891b2); color: #000;
+      box-shadow: 0 4px 20px rgba(6,182,212,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 26px rgba(6,182,212,0.48); }
+    .btn-primary:disabled { opacity: 0.4; transform: none; cursor: not-allowed; }
+    .btn-ghost {
+      background: var(--bg-surface); color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+    }
+    .btn-ghost:hover { border-color: var(--cyan); color: #fff; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn-ghost { flex: 1; }
+    .btn-row .btn-primary { flex: 2; }
+
+    /* ── Payment methods ── */
+    .pm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 12px; margin-bottom: 22px; }
+    .pm-card { background: var(--bg-input); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 16px; }
+    .pm-head { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+    .pm-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+    .pm-icon.meezan { background: rgba(56,189,248,0.14); color: #38bdf8; }
+    .pm-icon.jazz   { background: rgba(235,28,36,0.12); color: #ef4444; }
+    .pm-icon.easy   { background: rgba(0,169,80,0.12); color: #10b981; }
+    .pm-icon.raast  { background: rgba(139,92,246,0.12); color: var(--purple); }
+    .pm-name { font-weight: 700; font-size: 0.9rem; color: #fff; }
+    .pm-sub { font-size: 0.68rem; color: var(--text-muted); }
+    .copy-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--text-secondary); }
+    .copy-row strong { color: #fff; }
+    .copy-btn {
+      background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.2);
+      color: var(--cyan); border-radius: 5px; padding: 3px 10px; font-size: 0.68rem;
+      font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .copy-btn:hover { background: rgba(6,182,212,0.22); }
+
+    /* ── OCR Drop zone ── */
+    .ocr-drop {
+      border: 2px dashed rgba(6,182,212,0.3); border-radius: var(--radius-md);
+      padding: 44px 20px; text-align: center; cursor: pointer; transition: all 0.22s;
+      background: rgba(6,182,212,0.025); margin-bottom: 16px;
+    }
+    .ocr-drop:hover, .ocr-drop.drag-over { border-color: var(--cyan); background: rgba(6,182,212,0.06); }
+    .ocr-drop-icon { font-size: 2.5rem; color: var(--cyan); margin-bottom: 12px; }
+    .ocr-drop h3 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 5px; }
+    .ocr-drop p { font-size: 0.78rem; color: var(--text-muted); }
+
+    /* ── Preview ── */
+    .preview-wrap { display: none; gap: 16px; margin-bottom: 16px; }
+    .preview-wrap.show { display: grid; grid-template-columns: 1fr 1fr; }
+    @media(max-width:580px) { .preview-wrap.show { grid-template-columns: 1fr; } }
+    .img-frame { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); background: var(--bg-input); position: relative; }
+    .img-frame img { width: 100%; display: block; max-height: 270px; object-fit: contain; }
+    .scan-laser { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 12px var(--cyan); top: 0; display: none; }
+    .scanning .scan-laser { display: block; animation: laser 1.8s ease-in-out infinite; }
+    @keyframes laser { 0%,100%{top:0} 50%{top:calc(100% - 2px)} }
+    .scan-status {
+      background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: 22px;
+    }
+    .progress-bg { height: 4px; background: var(--border); border-radius: 2px; margin: 10px 0; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); border-radius: 2px; transition: width 0.3s; width: 0%; }
+
+    /* ── Extracted result ── */
+    .extracted-card { display: none; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-top: 12px; }
+    .ext-head { background: var(--bg-surface); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    .ext-provider { font-size: 1rem; font-weight: 800; color: #fff; }
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; }
+    .badge-ok   { background: rgba(16,185,129,0.14); color: var(--green); border: 1px solid rgba(16,185,129,0.28); }
+    .badge-fail { background: rgba(239,68,68,0.14); color: var(--red);   border: 1px solid rgba(239,68,68,0.28); }
+    .ext-field { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
+    .ext-field:last-child { border-bottom: none; }
+    .ext-lbl { color: var(--text-muted); }
+    .ext-val { font-weight: 700; color: #fff; }
+
+    /* ── SUCCESS — Digital Pass Card (matches main app format) ── */
+    .success-wrap { text-align: center; }
+    .success-icon {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.28);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.1rem; color: var(--green); margin: 0 auto 16px;
+      animation: pop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
+    .success-title { font-size: 1.9rem; font-weight: 900; color: #fff; margin-bottom: 6px; }
+    .success-sub { color: var(--text-secondary); font-size: 0.9rem; max-width: 480px; margin: 0 auto 26px; line-height: 1.6; }
+
+    /* ── The Pass Card — identical to main layout software style (85.6mm x 54mm) ── */
+    .pass-card-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 12px auto 20px;
+    }
+
+    .commander-shuttle-card {
+      width: 100%;
+      max-width: 360px;
+      height: 226px;
+      background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
+      border: 1.5px solid #1e293b;
+      border-radius: 10px;
+      padding: 9px 12px 7px 12px;
+      color: #000000;
+      font-weight: 900;
+      font-family: 'Inter', Arial, 'Helvetica Neue', sans-serif;
+      position: relative;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+      box-sizing: border-box;
+      overflow: hidden !important;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      animation: slideUp 0.6s ease;
+      text-align: left;
+    }
+    @keyframes slideUp { 0%{transform:translateY(30px);opacity:0} 100%{transform:translateY(0);opacity:1} }
+
+    /* 12 Elegant Monthly Themes for Card Backgrounds & Header Accents */
+    .theme-month-1  { background: linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 100%) !important; }
+    .theme-month-1  .cc-header-badge { background: #0369a1 !important; color: #ffffff !important; }
+    .theme-month-2  { background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%) !important; }
+    .theme-month-2  .cc-header-badge { background: #047857 !important; color: #ffffff !important; }
+    .theme-month-3  { background: linear-gradient(145deg, #faf5ff 0%, #f3e8ff 100%) !important; }
+    .theme-month-3  .cc-header-badge { background: #6d28d9 !important; color: #ffffff !important; }
+    .theme-month-4  { background: linear-gradient(145deg, #fff1f2 0%, #ffe4e6 100%) !important; }
+    .theme-month-4  .cc-header-badge { background: #be123c !important; color: #ffffff !important; }
+    .theme-month-5  { background: linear-gradient(145deg, #fefce8 0%, #fef9c3 100%) !important; }
+    .theme-month-5  .cc-header-badge { background: #b45309 !important; color: #ffffff !important; }
+    .theme-month-6  { background: linear-gradient(145deg, #fdf2f8 0%, #fce7f3 100%) !important; }
+    .theme-month-6  .cc-header-badge { background: #be185d !important; color: #ffffff !important; }
+    .theme-month-7  { background: linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 100%) !important; }
+    .theme-month-7  .cc-header-badge { background: #0f766e !important; color: #ffffff !important; }
+    .theme-month-8  { background: linear-gradient(145deg, #eef2ff 0%, #e0e7ff 100%) !important; }
+    .theme-month-8  .cc-header-badge { background: #4338ca !important; color: #ffffff !important; }
+    .theme-month-9  { background: linear-gradient(145deg, #fff1f1 0%, #ffe4e4 100%) !important; }
+    .theme-month-9  .cc-header-badge { background: #b91c1c !important; color: #ffffff !important; }
+    .theme-month-10 { background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%) !important; }
+    .theme-month-10 .cc-header-badge { background: #c2410c !important; color: #ffffff !important; }
+    .theme-month-11 { background: linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%) !important; }
+    .theme-month-11 .cc-header-badge { background: #334155 !important; color: #ffffff !important; }
+    .theme-month-12 { background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%) !important; }
+    .theme-month-12 .cc-header-badge { background: #1d4ed8 !important; color: #ffffff !important; }
+
+    .cc-header-badge {
+      padding: 2px 7px;
+      border-radius: 10px;
+      color: #ffffff !important;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      margin-left: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    .cc-member-code-badge {
+      margin-left: auto;
+      flex-shrink: 0;
+      background: #0f172a;
+      color: #38bdf8 !important;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      border: 1px solid #1e293b;
+      white-space: nowrap;
+      text-transform: uppercase;
+      line-height: 1;
+      align-self: center;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.15);
+    }
+
+    .cc-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      margin-bottom: 5px;
+      border-bottom: 1.5px solid #000000;
+      padding-bottom: 3px;
+    }
+    .cc-logo-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 48px;
+    }
+    .cc-logo-box img {
+      max-height: 28px;
+      object-fit: contain;
+      margin-bottom: 1px;
+    }
+    .cc-logo-sub {
+      font-size: 6.5px;
+      font-weight: 900 !important;
+      color: #000000 !important;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .cc-title-box {
+      text-align: center;
+      flex: 1;
+    }
+    .cc-title-main {
+      font-size: 12.5px;
+      font-weight: 900 !important;
+      color: #000000 !important;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+    .cc-title-sub {
+      font-size: 11.5px;
+      font-weight: 900 !important;
+      color: #000000 !important;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      line-height: 1.1;
+      margin-top: 1px;
+    }
+
+    .cc-body {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      flex: 1;
+    }
+
+    .cc-details-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .cc-field-row {
+      font-size: 10.5px;
+      line-height: 1.25;
+      display: flex;
+      align-items: baseline;
+      font-weight: 900;
+    }
+    .cc-label {
+      font-weight: 900 !important;
+      color: #000000 !important;
+      margin-right: 3px;
+      white-space: nowrap;
+    }
+    .cc-value {
+      font-weight: 900 !important;
+      color: #000000 !important;
+      border-bottom: 1.5px solid #000000;
+      padding-bottom: 0px;
+      display: inline-block;
+      flex: 1;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .cc-value-red {
+      color: #dc2626 !important;
+      font-weight: 900 !important;
+    }
+
+    .cc-photo-col {
+      width: 82px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+      justify-content: flex-start;
+    }
+    .cc-photo-frame {
+      width: 78px;
+      height: 72px;
+      border: 1.5px solid #000000;
+      background: #f1f5f9;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .cc-photo-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .cc-serial-badge-box {
+      width: 100%;
+      background: #0f172a;
+      color: #ffffff !important;
+      border: 1.5px solid #1e293b;
+      border-radius: 6px;
+      padding: 4px 3px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      box-shadow: 0 1px 4px rgba(15,23,42,0.15);
+      flex-shrink: 0;
+    }
+    .cc-serial-lbl {
+      font-size: 6.5px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #94a3b8 !important;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    .cc-serial-num {
+      font-size: 13px;
+      font-weight: 800;
+      color: #38bdf8 !important;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    /* Security Verification Widget below card */
+    .pass-security-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      max-width: 480px;
+      margin: 0 auto 24px;
+      text-align: left;
+    }
+    .ps-qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .ps-qr {
+      width: 72px;
+      height: 72px;
+      background: #fff;
+      border-radius: 6px;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ps-qr-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+    .ps-info { flex: 1; }
+    .ps-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(16,185,129,0.12);
+      color: var(--green);
+      border: 1px solid rgba(16,185,129,0.25);
+      padding: 3px 9px;
+      border-radius: 12px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .ps-tid {
+      font-size: 0.8rem;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .ps-tid strong { color: var(--cyan-light); }
+    .ps-note {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* Action buttons */
+    .action-btns { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+    .action-btns .btn { width: auto; padding: 11px 24px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--bg-card); border: 1px solid var(--border-light);
+      border-radius: 40px; padding: 12px 22px;
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.875rem; font-weight: 600; color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); z-index: 9999;
+      opacity: 0; transition: all 0.3s ease; white-space: nowrap; max-width: 90vw;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Spinner ── */
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes fadeInUp { 0%{transform:translateY(12px);opacity:0} 100%{transform:translateY(0);opacity:1} }
+
+    /* ── Print Physical PVC ID Card Format (85.6mm x 54.0mm) ── */
+    @media print {
+      body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+      body * { visibility: hidden !important; }
+      #printArea, #printArea * { visibility: visible !important; }
+      #printArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        padding-top: 15mm !important;
+      }
+      .commander-shuttle-card {
+        width: 85.6mm !important;
+        height: 54.0mm !important;
+        max-width: 85.6mm !important;
+        max-height: 54.0mm !important;
+        box-sizing: border-box !important;
+        border: 2px solid #000000 !important;
+        border-radius: 3mm !important;
+        padding: 1.8mm 2.5mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        color: #000000 !important;
+        font-family: Arial, 'Helvetica Neue', sans-serif !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .cc-title-main, .cc-title-sub, .cc-label, .cc-value, .cc-logo-sub, .cc-header-badge {
+        color: #000000 !important;
+        font-weight: 900 !important;
+      }
+      .cc-value {
+        border-bottom: 1.5px solid #000000 !important;
+      }
+      .cc-photo-frame {
+        border: 1.5px solid #000000 !important;
+      }
+      .cc-header {
+        border-bottom: 1.5px solid #000000 !important;
+      }
+      .cc-member-code-badge {
+        border: 1.5px solid #000000 !important;
+        background: #000000 !important;
+        color: #ffffff !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <i id="toastIcon" class="fas fa-check-circle"></i>
+    <span id="toastMsg">Done</span>
+  </div>
+
+  <!-- Header -->
+  <header class="portal-header">
+    <div class="brand">
+      <img src="LOGO.png" alt="Logo" onerror="this.style.display='none'">
+      <div>
+        <div class="brand-name">Commander<span>City</span></div>
+        <div class="brand-sub">Shuttle Pass — Self-Service Portal</div>
+      </div>
+    </div>
+    <div class="secure-badge"><i class="fas fa-shield-halved"></i> Secure Portal</div>
+  </header>
+
+  <div class="portal-wrap">
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>Renew Your <span>Shuttle Pass</span></h1>
+      <p>Enter your unique Member ID, choose your pass type, upload your payment screenshot — and receive your digital pass instantly.</p>
+      <div class="pill"><i class="fas fa-bolt"></i> Instant Issuance · AI-Verified · No Waiting</div>
+    </div>
+
+    <!-- Wizard Progress -->
+    <div class="wizard" id="wizardBar">
+      <div class="wz active" id="wz1"><div class="wz-n">1</div><div class="wz-l">Member ID</div></div>
+      <div class="wz" id="wz2"><div class="wz-n">2</div><div class="wz-l">Pass Type</div></div>
+      <div class="wz" id="wz3"><div class="wz-n">3</div><div class="wz-l">Pay & Upload</div></div>
+      <div class="wz" id="wz4"><div class="wz-n"><i class="fas fa-check" style="font-size:0.78rem;"></i></div><div class="wz-l">Pass Issued</div></div>
+    </div>
+
+    <!-- ── STEP 1: Enter Unique Member ID ── -->
+    <div class="card" id="step1">
+      <div class="card-title"><i class="fas fa-fingerprint" style="color:var(--cyan)"></i> Step 1 — Enter Your Member ID</div>
+      <p class="card-desc">Enter your unique Commander City Member ID (e.g. <strong style="color:var(--cyan)">CC-00042</strong> or just <strong style="color:var(--cyan)">42</strong>). We'll look up your profile instantly.</p>
+
+      <div class="form-group">
+        <label class="form-label" for="memberIdInput">Your Unique Member ID</label>
+        <div class="id-group">
+          <input type="text" id="memberIdInput" class="form-input"
+            placeholder="CC-00042  or  42" autocomplete="off" autocorrect="off"
+            onkeydown="if(event.key==='Enter') Portal.lookupMember()">
+          <button class="btn-lookup" id="btnLookup" onclick="Portal.lookupMember()">
+            <i class="fas fa-search" id="lookupIcon"></i> Find Me
+          </button>
+        </div>
+      </div>
+
+      <!-- Member found card -->
+      <div class="member-found" id="memberCard">
+        <img src="LOGO.png" id="memberPhoto" class="member-photo" alt="Photo" onerror="this.src='LOGO.png'">
+        <div>
+          <div class="member-name" id="memberName">—</div>
+          <div class="member-tags">
+            <span class="m-tag"><i class="fas fa-id-badge" style="color:var(--cyan)"></i> <span id="memberCode">CC-00000</span></span>
+            <span class="m-tag"><i class="fas fa-id-card" style="color:var(--purple)"></i> <span id="memberCnic">—</span></span>
+            <span class="m-tag"><i class="fas fa-home" style="color:var(--green)"></i> <span id="memberHouse">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Not found -->
+      <div class="member-not-found" id="notFoundMsg">
+        <i class="fas fa-times-circle"></i> No member found with that ID. Please check your Member ID or contact the shuttle office.
+      </div>
+
+      <div style="margin-top:20px;">
+        <button class="btn btn-primary" id="btnStep1Next" disabled onclick="Portal.goStep(2)">
+          <span>Continue</span> <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Pass Type ── -->
+    <div class="card" id="step2" style="display:none;">
+      <div class="card-title"><i class="fas fa-ticket" style="color:var(--purple)"></i> Step 2 — Choose Pass Type</div>
+      <p class="card-desc">Select the pass you want to purchase. <strong style="color:var(--amber)">Half-month passes are only available after the 15th of the month.</strong></p>
+
+      <div id="halfNotice" class="half-notice" style="display:none;">
+        <i class="fas fa-lock"></i>
+        <span><strong>Half-month pass not available yet.</strong> You can only purchase a half-month pass after the 15th of the current month. Today is <span id="todayDate">—</span>.</span>
+      </div>
+
+      <div class="pass-grid">
+        <div class="pass-opt sel" id="optFull" onclick="Portal.setPassType('Full')">
+          <div class="pass-opt-top">
+            <span class="pass-badge badge-full">Full Month</span>
+            <i class="fas fa-check-circle" id="iconFull" style="color:var(--cyan)"></i>
+          </div>
+          <div class="pass-price" id="prFull">PKR 8,000</div>
+          <div class="pass-desc">Full 30-day shuttle access — entire month</div>
+        </div>
+        <div class="pass-opt" id="optHalf" onclick="Portal.setPassType('Half')">
+          <div class="pass-opt-top">
+            <span class="pass-badge badge-half">Half Month</span>
+            <i class="far fa-circle" id="iconHalf" style="color:var(--text-muted)"></i>
+          </div>
+          <div class="pass-price" id="prHalf">PKR 4,000</div>
+          <div class="pass-desc">15-day pass · available after 15th only</div>
+        </div>
+      </div>
+
+      <!-- Month / Year -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+        <div>
+          <label class="form-label" for="monthSel">Pass Month</label>
+          <select id="monthSel" class="form-input" onchange="Portal.calcFee()">
+            <option value="1">January</option><option value="2">February</option>
+            <option value="3">March</option><option value="4">April</option>
+            <option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option>
+            <option value="9">September</option><option value="10" selected>October</option>
+            <option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="yearSel">Pass Year</label>
+          <select id="yearSel" class="form-input" onchange="Portal.calcFee()">
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="Portal.goStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button class="btn btn-primary" onclick="Portal.goStep(3)"><span>Proceed to Payment</span> <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Payment + Screenshot Upload ── -->
+    <div class="card" id="step3" style="display:none;">
+      <div class="card-title"><i class="fas fa-money-bill-transfer" style="color:var(--green)"></i> Step 3 — Pay & Upload Screenshot</div>
+      <p class="card-desc">Transfer exactly <strong id="amtRequired" style="color:var(--cyan)">PKR 8,000</strong> to any account below. Then upload a clear screenshot of your payment summary/receipt.</p>
+
+      <!-- Payment methods -->
+      <div class="pm-grid">
+        <div class="pm-card">
+          <div class="pm-head">
+            <div class="pm-icon meezan"><i class="fas fa-building-columns"></i></div>
+            <div><div class="pm-name">Meezan Bank</div><div class="pm-sub">Commander City Shuttle</div></div>
+          </div>
+          <div class="copy-row"><span>A/C: <strong>0102-0105847291</strong></span><button class="copy-btn" onclick="Portal.copy('01020105847291','Account No.')"><i class="far fa-copy"></i> Copy</button></div>
+          <div class="copy-row"><span style="font-size:0.68rem;">IBAN: PK42MEZN0001020105847291</span><button class="copy-btn" onclick="Portal.copy('PK42MEZN0001020105847291','IBAN')"><i class="far fa-copy"></i> Copy</button></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-head">
+            <div class="pm-icon jazz"><i class="fas fa-mobile-screen"></i></div>
+            <div><div class="pm-name">JazzCash</div><div class="pm-sub">Commander City Shuttle</div></div>
+          </div>
+          <div class="copy-row"><span>Mobile: <strong>0300-8271629</strong></span><button class="copy-btn" onclick="Portal.copy('03008271629','JazzCash No.')"><i class="far fa-copy"></i> Copy</button></div>
+          <div class="copy-row"><span>Title: Commander Shuttle</span><span style="color:var(--green);font-size:0.68rem;font-weight:700;">● Active</span></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-head">
+            <div class="pm-icon easy"><i class="fas fa-wallet"></i></div>
+            <div><div class="pm-name">EasyPaisa</div><div class="pm-sub">Commander City Shuttle</div></div>
+          </div>
+          <div class="copy-row"><span>Mobile: <strong>0300-8271629</strong></span><button class="copy-btn" onclick="Portal.copy('03008271629','EasyPaisa No.')"><i class="far fa-copy"></i> Copy</button></div>
+          <div class="copy-row"><span>Title: Commander City</span><span style="color:var(--green);font-size:0.68rem;font-weight:700;">● Active</span></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-head">
+            <div class="pm-icon raast"><i class="fas fa-bolt"></i></div>
+            <div><div class="pm-name">Raast Instant</div><div class="pm-sub">State Bank of Pakistan</div></div>
+          </div>
+          <div class="copy-row"><span>Raast ID: <strong>03008271629</strong></span><button class="copy-btn" onclick="Portal.copy('03008271629','Raast ID')"><i class="far fa-copy"></i> Copy</button></div>
+          <div class="copy-row"><span>Transfer Fee: <strong>PKR 0 (Free)</strong></span><span style="color:var(--cyan);font-size:0.68rem;font-weight:700;">Zero Fee</span></div>
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <div class="ocr-drop" id="ocrDrop" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="Portal.handleFile(event)">
+        <div class="ocr-drop-icon"><i class="fas fa-file-image"></i></div>
+        <h3>Upload Payment Screenshot</h3>
+        <p>JazzCash · EasyPaisa · Meezan · HBL · UBL · Raast · Any Bank</p>
+      </div>
+
+      <!-- Quick sample test button -->
+      <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:16px;">
+        <span style="font-size:0.75rem;color:var(--text-muted);">or test OCR instantly:</span>
+        <button type="button" class="btn-ghost" style="padding:6px 14px;border-radius:20px;font-size:0.74rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;" onclick="Portal.loadDemoReceipt()">
+          <i class="fas fa-wand-magic-sparkles" style="color:var(--cyan)"></i> Load Sample Paid Receipt
+        </button>
+      </div>
+
+      <!-- Preview + scan -->
+      <div class="preview-wrap" id="previewWrap">
+        <div class="img-frame" id="imgFrame">
+          <div class="scan-laser" id="scanLaser"></div>
+          <img id="receiptImg" src="" alt="Receipt">
+        </div>
+        <div class="scan-status">
+          <div id="scanStatus">
+            <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:0.95rem;">
+              <i class="fas fa-spinner spin" style="color:var(--cyan)" id="spinIcon"></i>
+              <span id="statusText">Scanning with AI OCR...</span>
+            </div>
+            <div class="progress-bg"><div class="progress-fill" id="progressBar"></div></div>
+            <p style="font-size:0.76rem;color:var(--text-muted);" id="statusSub">Detecting payment details...</p>
+          </div>
+
+          <div class="extracted-card" id="extractedCard">
+            <div class="ext-head">
+              <div class="ext-provider" id="extProvider">—</div>
+              <div class="status-badge badge-ok" id="extBadge"><i class="fas fa-check-circle"></i> VERIFIED</div>
+            </div>
+            <div class="ext-field"><span class="ext-lbl">Transaction ID</span><span class="ext-val" id="extTid">—</span></div>
+            <div class="ext-field"><span class="ext-lbl">Amount Detected</span><span class="ext-val" style="color:var(--cyan-light)" id="extAmt">—</span></div>
+            <div class="ext-field"><span class="ext-lbl">Required Amount</span><span class="ext-val" id="extRequired">—</span></div>
+            <div class="ext-field"><span class="ext-lbl">Date</span><span class="ext-val" id="extDate">—</span></div>
+            <div class="ext-field"><span class="ext-lbl">AI Confidence</span><span class="ext-val" style="color:var(--green)" id="extConf">—</span></div>
+            <div style="padding:14px 16px;">
+              <button class="btn btn-primary" id="btnIssue" onclick="Portal.issuePass()">
+                <i class="fas fa-bolt"></i> Accept & Issue Shuttle Pass
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="Portal.goStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+          <div style="flex:2;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Digital Pass (Official Format & Layout) ── -->
+    <div class="card" id="step4" style="display:none;">
+      <div class="success-wrap">
+        <div class="success-icon"><i class="fas fa-check"></i></div>
+        <div class="success-title">Pass Issued!</div>
+        <p class="success-sub">Your payment has been verified. Your official shuttle pass is now active. Save or print your pass below.</p>
+
+        <!-- Official Layout Software Card Structure -->
+        <div class="pass-card-container" id="printArea">
+          <div class="commander-shuttle-card theme-month-10" id="officialPassCard">
+            <!-- Header -->
+            <div class="cc-header">
+              <div class="cc-logo-box">
+                <img src="logo.png" alt="Commander City" style="max-height: 28px; object-fit: contain; margin-bottom: 1px;" onerror="this.src='LOGO.png'">
+                <span class="cc-logo-sub">COMMANDER CITY</span>
+              </div>
+              <div class="cc-title-box">
+                <div class="cc-title-main">COMMANDER CITY <span class="cc-header-badge" id="pcBadge">OCTOBER EDITION</span></div>
+                <div class="cc-title-sub">SHUTTLE PASS</div>
+              </div>
+              <!-- Unique Member Code Badge -->
+              <div class="cc-member-code-badge" id="pcMemberCode" title="Unique Member ID">CC-00042</div>
+            </div>
+
+            <!-- Body -->
+            <div class="cc-body">
+              <!-- Left Details Column -->
+              <div class="cc-details-col">
+                <div class="cc-field-row">
+                  <span class="cc-label">Name:</span>
+                  <span class="cc-value" id="pcName">—</span>
+                </div>
+                <div class="cc-field-row">
+                  <span class="cc-label">CNIC:</span>
+                  <span class="cc-value" id="pcCnic">—</span>
+                </div>
+                <div class="cc-field-row">
+                  <span class="cc-label">House No:</span>
+                  <span class="cc-value" id="pcHouse">—</span>
+                </div>
+                <div class="cc-field-row">
+                  <span class="cc-label">Pass Type:</span>
+                  <span class="cc-value" id="pcType" style="font-weight:800;color:#0369a1">FULL PASS</span>
+                </div>
+                <div class="cc-field-row">
+                  <span class="cc-label">Issue Date:</span>
+                  <span class="cc-value" id="pcIssue">—</span>
+                </div>
+                <div class="cc-field-row">
+                  <span class="cc-label">Valid Till:</span>
+                  <span class="cc-value cc-value-red" id="pcValid">—</span>
+                </div>
+              </div>
+
+              <!-- Right Photo & Payment Serial Badge Column -->
+              <div class="cc-photo-col">
+                <div class="cc-photo-frame">
+                  <img id="pcPhoto" src="logo.png" alt="Photo" onerror="this.src='LOGO.png'">
+                </div>
+                <div class="cc-serial-badge-box">
+                  <span class="cc-serial-lbl">PAYMENT SEQ</span>
+                  <span class="cc-serial-num" id="pcSerial">#01</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Security Verification Box -->
+        <div class="pass-security-box">
+          <div class="ps-qr-box">
+            <div id="pcQr" class="ps-qr"></div>
+            <span class="ps-qr-label"><i class="fas fa-qrcode"></i> Scan to Verify</span>
+          </div>
+          <div class="ps-info">
+            <div class="ps-tag"><i class="fas fa-shield-alt"></i> VERIFIED DIGITAL SHUTTLE PASS</div>
+            <div class="ps-tid">Reference TID: <strong id="pcTid">—</strong></div>
+            <div class="ps-note">Present this official pass card or QR code to the shuttle driver/conductor upon boarding. Valid for unlimited transit during the stated period.</div>
+          </div>
+        </div>
+
+        <div class="action-btns">
+          <button class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Physical Pass (PVC ID Card)
+          </button>
+          <button class="btn btn-ghost" onclick="Portal.reset()">
+            <i class="fas fa-redo"></i> Renew Another Pass
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /portal-wrap -->
+
+  <script src="js/ocr-engine.js"></script>
+  <script>
+  /* ══════════════════════════════════════════════════════════
+   * Commander City Shuttle Pass — Self-Service Portal
+   * Simplified 4-step flow:
+   *   1. Enter Unique Member ID → look up member
+   *   2. Choose Half / Full pass (Half locked before 15th)
+   *   3. Show payment accounts + upload screenshot → AI OCR verify
+   *   4. Issue digital pass in official layout + sync to server
+   * ══════════════════════════════════════════════════════════ */
+  const Portal = {
+    step: 1,
+    member: null,
+    passType: 'Full',
+    fee: 8000,
+    scanned: null,
+    transactions: JSON.parse(localStorage.getItem('cc_portal_txns') || '[]'),
+
+    /* ── Helpers ── */
+    today() { return new Date(); },
+
+    isAfter15th() {
+      return this.today().getDate() > 15;
+    },
+
+    init() {
+      // Set current month/year defaults
+      const now = new Date();
+      const monthSel = document.getElementById('monthSel');
+      const yearSel  = document.getElementById('yearSel');
+      if (monthSel) monthSel.value = String(now.getMonth() + 1);
+      if (yearSel)  yearSel.value  = String(now.getFullYear());
+
+      this.calcFee();
+      this.setupDrop();
+
+      // Show today's date in the half-pass notice
+      const td = document.getElementById('todayDate');
+      if (td) td.textContent = now.toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // Show/hide half lock based on current date
+      this.applyHalfLock();
+
+      console.log('[Portal] Self-Service Portal ready.');
+    },
+
+    applyHalfLock() {
+      const halfOpt    = document.getElementById('optHalf');
+      const halfNotice = document.getElementById('halfNotice');
+      if (!halfOpt) return;
+      if (this.isAfter15th()) {
+        halfOpt.classList.remove('disabled-opt');
+        if (halfNotice) halfNotice.style.display = 'none';
+      } else {
+        halfOpt.classList.add('disabled-opt');
+        if (halfNotice) halfNotice.style.display = 'flex';
+        // Force full pass if half is selected and locked
+        if (this.passType === 'Half') this.setPassType('Full');
+      }
+    },
+
+    /* ── Member Lookup ── */
+    async lookupMember() {
+      const raw = document.getElementById('memberIdInput').value.trim();
+      if (!raw) { this.toast('Please enter your Member ID.', 'warning'); return; }
+
+      // Normalize: extract numeric part from CC-00042 or 42
+      const numMatch = raw.replace(/cc-?/i, '').replace(/^0+/, '') || raw;
+      const numId = parseInt(numMatch, 10);
+
+      const btn = document.getElementById('btnLookup');
+      const icon = document.getElementById('lookupIcon');
+      btn.disabled = true;
+      icon.className = 'fas fa-spinner spin';
+
+      let found = null;
+
+      // 1. Try live server API
+      try {
+        const resp = await fetch(`/api/members?q=${encodeURIComponent(numMatch)}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.members && data.members.length > 0) {
+            // Find exact numeric ID match first
+            found = data.members.find(m => parseInt(m.id, 10) === numId) || data.members[0];
+          }
+        }
+      } catch(e) {
+        console.warn('[Portal] Server not reachable, using fallback data');
+      }
+
+      // 2. If not found via server, try Vercel API
+      if (!found) {
+        try {
+          const resp = await fetch(`/api/members?q=${encodeURIComponent(numMatch)}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.members && data.members.length > 0) {
+              found = data.members.find(m => parseInt(m.id, 10) === numId) || data.members[0];
+            }
+          }
+        } catch(e) {}
+      }
+
+      btn.disabled = false;
+      icon.className = 'fas fa-search';
+
+      if (found) {
+        this.member = found;
+        this.showMemberCard(found);
+        document.getElementById('btnStep1Next').disabled = false;
+        this.toast(`Welcome, ${found.name}!`, 'success');
+      } else {
+        document.getElementById('memberCard').classList.remove('show');
+        document.getElementById('notFoundMsg').classList.add('show');
+        document.getElementById('btnStep1Next').disabled = true;
+        this.member = null;
+      }
+    },
+
+    showMemberCard(m) {
+      document.getElementById('notFoundMsg').classList.remove('show');
+      document.getElementById('memberName').textContent  = m.name;
+      document.getElementById('memberCode').textContent  = `CC-${String(m.id).padStart(5,'0')}`;
+      document.getElementById('memberCnic').textContent  = m.cnic  || 'N/A';
+      document.getElementById('memberHouse').textContent = m.houseNo || 'Commander City';
+      const ph = document.getElementById('memberPhoto');
+      ph.src = m.photo || 'LOGO.png';
+      ph.onerror = () => ph.src = 'LOGO.png';
+      document.getElementById('memberCard').classList.add('show');
+    },
+
+    /* ── Pass Type ── */
+    setPassType(t) {
+      if (t === 'Half' && !this.isAfter15th()) {
+        this.toast('Half-month pass is only available after the 15th of the month.', 'warning');
+        return;
+      }
+      this.passType = t;
+      const full = document.getElementById('optFull');
+      const half = document.getElementById('optHalf');
+      const iFull = document.getElementById('iconFull');
+      const iHalf = document.getElementById('iconHalf');
+
+      if (t === 'Full') {
+        full.className = 'pass-opt sel';
+        half.className = 'pass-opt' + (this.isAfter15th() ? '' : ' disabled-opt');
+        iFull.className = 'fas fa-check-circle'; iFull.style.color = 'var(--cyan)';
+        iHalf.className = 'far fa-circle';       iHalf.style.color = 'var(--text-muted)';
+      } else {
+        half.className = 'pass-opt sel-purple';
+        full.className = 'pass-opt';
+        iHalf.className = 'fas fa-check-circle'; iHalf.style.color = 'var(--purple)';
+        iFull.className = 'far fa-circle';        iFull.style.color = 'var(--text-muted)';
+      }
+      this.calcFee();
+    },
+
+    calcFee() {
+      const m = parseInt(document.getElementById('monthSel').value, 10);
+      const y = parseInt(document.getElementById('yearSel').value, 10);
+      // New rates from Sep 2026 onwards
+      const newRate = (y * 12 + m) >= (2026 * 12 + 9);
+      const fullFee = newRate ? 8000 : 6000;
+      const halfFee = newRate ? 4000 : 3000;
+      document.getElementById('prFull').textContent = `PKR ${fullFee.toLocaleString()}`;
+      document.getElementById('prHalf').textContent = `PKR ${halfFee.toLocaleString()}`;
+      this.fee = this.passType === 'Half' ? halfFee : fullFee;
+      const el = document.getElementById('amtRequired');
+      if (el) el.textContent = `PKR ${this.fee.toLocaleString()}`;
+    },
+
+    /* ── Wizard Navigation ── */
+    goStep(s) {
+      if (s === 2 && !this.member) {
+        this.toast('Please find your member profile first.', 'warning'); return;
+      }
+      this.step = s;
+      [1,2,3,4].forEach(i => {
+        document.getElementById(`step${i}`).style.display = i === s ? 'block' : 'none';
+        const wz = document.getElementById(`wz${i}`);
+        wz.className = 'wz' + (i === s ? ' active' : i < s ? ' done' : '');
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    reset() {
+      this.scanned = null;
+      this.member  = null;
+      this.passType = 'Full';
+      document.getElementById('memberCard').classList.remove('show');
+      document.getElementById('notFoundMsg').classList.remove('show');
+      document.getElementById('memberIdInput').value = '';
+      document.getElementById('btnStep1Next').disabled = true;
+      document.getElementById('previewWrap').className = 'preview-wrap';
+      document.getElementById('extractedCard').style.display = 'none';
+      document.getElementById('scanStatus').style.display = 'block';
+      this.setPassType('Full');
+      this.goStep(1);
+    },
+
+    /* ── Copy to Clipboard ── */
+    copy(text, label) {
+      navigator.clipboard.writeText(text)
+        .then(() => this.toast(`${label} copied!`, 'success'))
+        .catch(() => this.toast(`Copy: ${text}`, 'info'));
+    },
+
+    /* ── File Handling ── */
+    setupDrop() {
+      const drop = document.getElementById('ocrDrop');
+      if (!drop) return;
+      drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+      drop.addEventListener('drop', e => {
+        e.preventDefault(); drop.classList.remove('drag-over');
+        const f = e.dataTransfer.files[0];
+        if (f) this.readFile(f);
+      });
+    },
+
+    handleFile(e) {
+      const f = e.target.files[0];
+      if (f) this.readFile(f);
+      // Reset input so same file can be re-selected
+      e.target.value = '';
+    },
+
+    readFile(file) {
+      if (!file.type.startsWith('image/')) {
+        this.toast('Please upload an image file (PNG, JPG, screenshot).', 'error'); return;
+      }
+      const reader = new FileReader();
+      reader.onload = ev => this.runOcr(ev.target.result);
+      reader.readAsDataURL(file);
+    },
+
+    /* ── AI OCR Scan ── */
+    async runOcr(src) {
+      document.getElementById('receiptImg').src = src;
+      document.getElementById('previewWrap').className = 'preview-wrap show';
+      document.getElementById('imgFrame').classList.add('scanning');
+      document.getElementById('scanStatus').style.display = 'block';
+      document.getElementById('extractedCard').style.display = 'none';
+      document.getElementById('progressBar').style.width = '0%';
+
+      try {
+        const parsed = await ShuttleOCR.scanReceipt(src, u => {
+          document.getElementById('progressBar').style.width = `${Math.round(u.progress * 100)}%`;
+          document.getElementById('statusText').textContent = u.message;
+        });
+        this.scanned = parsed;
+        this.showExtracted(parsed);
+      } catch(err) {
+        this.toast('Scan failed: ' + err.message, 'error');
+      } finally {
+        document.getElementById('imgFrame').classList.remove('scanning');
+      }
+    },
+
+    showExtracted(p) {
+      document.getElementById('scanStatus').style.display = 'none';
+      const card = document.getElementById('extractedCard');
+      card.style.display = 'block';
+
+      document.getElementById('extProvider').textContent = p.provider   || 'Unknown';
+      document.getElementById('extTid').textContent      = p.transactionId || 'NOT DETECTED';
+      document.getElementById('extAmt').textContent      = `PKR ${(p.amount || 0).toLocaleString()}`;
+      document.getElementById('extRequired').textContent = `PKR ${this.fee.toLocaleString()}`;
+      document.getElementById('extDate').textContent     = p.date        || 'Unknown';
+      document.getElementById('extConf').textContent     = `${p.confidence || 85}%`;
+
+      const isDup  = this.transactions.some(t => t.tid === p.transactionId && t.status === 'ok');
+      const amtOk  = (p.amount || 0) >= this.fee;
+      const badge  = document.getElementById('extBadge');
+      const btn    = document.getElementById('btnIssue');
+
+      if (isDup) {
+        badge.className = 'status-badge badge-fail';
+        badge.innerHTML = '<i class="fas fa-ban"></i> DUPLICATE — REJECTED';
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-times"></i> Already Used';
+        this.toast('This Transaction ID was already accepted!', 'error');
+      } else if (!amtOk) {
+        badge.className = 'status-badge badge-fail';
+        badge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> UNDERPAID';
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-times"></i> Needs PKR ${this.fee.toLocaleString()}`;
+        this.toast(`Amount PKR ${(p.amount||0).toLocaleString()} is less than required PKR ${this.fee.toLocaleString()}`, 'warning');
+      } else {
+        badge.className = 'status-badge badge-ok';
+        badge.innerHTML = '<i class="fas fa-check-circle"></i> VERIFIED & ACCEPTED';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bolt"></i> Accept & Issue Shuttle Pass';
+        this.toast('Payment verified! Tap below to issue your pass.', 'success');
+      }
+    },
+
+    /* ── Issue Pass ── */
+    async issuePass() {
+      if (!this.member || !this.scanned) { this.toast('Missing data. Please retry.', 'error'); return; }
+
+      const m  = parseInt(document.getElementById('monthSel').value, 10);
+      const y  = parseInt(document.getElementById('yearSel').value, 10);
+      const lastDay = new Date(y, m, 0).getDate();
+
+      // Determine validity dates
+      let issueDate, validTill;
+      if (this.passType === 'Half') {
+        // Half pass: from 16th to end of month
+        issueDate = `16-${String(m).padStart(2,'0')}-${y}`;
+        validTill = `${String(lastDay).padStart(2,'0')}-${String(m).padStart(2,'0')}-${y}`;
+      } else {
+        // Full pass: 1st to end of month
+        issueDate = `01-${String(m).padStart(2,'0')}-${y}`;
+        validTill = `${String(lastDay).padStart(2,'0')}-${String(m).padStart(2,'0')}-${y}`;
+      }
+
+      const serial = String(
+        this.transactions.filter(t => t.month === m && t.year === y).length + 1
+      ).padStart(2, '0');
+
+      const payload = {
+        memberId:      this.member.id,
+        memberName:    this.member.name,
+        cnic:          this.member.cnic,
+        houseNo:       this.member.houseNo,
+        contact:       this.member.contact || '',
+        photo:         this.member.photo   || 'LOGO.png',
+        serialNo:      serial,
+        month: m, year: y,
+        passType:      this.passType,
+        amount:        this.fee,
+        transactionId: this.scanned.transactionId,
+        provider:      this.scanned.provider,
+        issueDate,
+        validTill
+      };
+
+      // Record locally
+      this.transactions.unshift({ tid: payload.transactionId, month: m, year: y, status: 'ok', ...payload });
+      localStorage.setItem('cc_portal_txns', JSON.stringify(this.transactions));
+
+      // Sync to Google Sheets
+      this.syncGoogle(payload);
+
+      // Sync to local server (if running)
+      try {
+        await fetch('/api/submit-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch(e) {
+        console.warn('[Portal] Local server sync skipped (not running)');
+      }
+
+      this.renderPass(payload);
+      this.goStep(4);
+      this.toast('🎉 Shuttle Pass Issued Successfully!', 'success');
+    },
+
+    /* ── Google Sheets Sync ── */
+    syncGoogle(pass) {
+      const url = 'https://script.google.com/macros/s/AKfycbyGXUJIPYrAcjE4FHzG97q6_kj95lCVKPgM9hxFANKZZt4_CL1YKukJVmjlRPLuDho/exec';
+      fetch(url, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'SYNC_DATA', passes: [pass], members: [this.member] })
+      }).catch(() => {});
+    },
+
+    /* ── Load Demo Receipt for Testing ── */
+    loadDemoReceipt() {
+      if (typeof ShuttleOCR === 'undefined' || !ShuttleOCR.generateDemoReceipt) {
+        this.toast('OCR engine not loaded yet', 'warning');
+        return;
+      }
+      const demoType = this.passType === 'Half' ? 'easypaisa_4000' : 'jazzcash_8000';
+      const sampleUrl = ShuttleOCR.generateDemoReceipt(demoType);
+      this.toast(`Loaded sample ${this.passType} pass receipt`, 'info');
+      this.runOcr(sampleUrl);
+    },
+
+    /* ── Render Digital Pass Card (Official Layout Software Card) ── */
+    renderPass(p) {
+      const monthNames = ['', 'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+      const monthName = monthNames[p.month] || 'MONTH';
+
+      document.getElementById('pcSerial').textContent     = `#${p.serialNo}`;
+      document.getElementById('pcName').textContent       = p.memberName;
+      document.getElementById('pcCnic').textContent       = p.cnic || '—';
+      document.getElementById('pcHouse').textContent      = p.houseNo || '—';
+      document.getElementById('pcType').textContent       = `${(p.passType || 'Full').toUpperCase()} PASS`;
+      document.getElementById('pcType').style.color       = p.passType === 'Half' ? '#b45309' : '#0369a1';
+      document.getElementById('pcIssue').textContent      = p.issueDate || '—';
+      document.getElementById('pcValid').textContent      = p.validTill || '—';
+      document.getElementById('pcBadge').textContent      = `${monthName} EDITION`;
+      
+      const memberCode = `CC-${String(p.memberId).padStart(5, '0')}`;
+      document.getElementById('pcMemberCode').textContent = memberCode;
+
+      const ph = document.getElementById('pcPhoto');
+      ph.src = p.photo || 'logo.png';
+      ph.onerror = () => { ph.src = 'LOGO.png'; };
+
+      // Apply official monthly theme class (theme-month-1 through 12)
+      const card = document.getElementById('officialPassCard');
+      card.className = `commander-shuttle-card theme-month-${p.month}`;
+
+      // Update Security Verification Box
+      const tidEl = document.getElementById('pcTid');
+      if (tidEl) tidEl.textContent = p.transactionId || 'OFFLINE';
+
+      // Generate Verification QR Code
+      const qr = document.getElementById('pcQr');
+      if (qr) {
+        qr.innerHTML = '';
+        if (window.QRCode) {
+          new QRCode(qr, {
+            text: `COMMANDER_PASS|ID:${p.id || Date.now()}|SERIAL:${p.serialNo}|MEMBER:${p.memberName}|MEMBER_ID:${memberCode}|CYCLE:${p.month}/${p.year}|TID:${p.transactionId}`,
+            width: 72,
+            height: 72,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+      }
+    },
+
+    /* ── Toast ── */
+    toast(msg, type = 'success') {
+      const t  = document.getElementById('toast');
+      const m  = document.getElementById('toastMsg');
+      const ic = document.getElementById('toastIcon');
+      m.textContent = msg;
+      const map = {
+        success: ['fa-check-circle',       'var(--green)'],
+        error:   ['fa-times-circle',       'var(--red)'],
+        warning: ['fa-exclamation-triangle','var(--amber)'],
+        info:    ['fa-info-circle',        'var(--cyan)']
+      };
+      const [cls, col] = map[type] || map.info;
+      ic.className = `fas ${cls}`; ic.style.color = col;
+      t.classList.add('show');
+      clearTimeout(this._tt);
+      this._tt = setTimeout(() => t.classList.remove('show'), 4500);
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => Portal.init());
+  </script>
+
+</body>
+</html>
